@@ -1,0 +1,2482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>DataForge — Clean CSV and Excel Files</title>
+<meta name="description" content="DataForge is a premium single-file data cleaning app for CSV and Excel files." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#f6f8fb;
+  --bg-2:#eef3f7;
+  --surface:#ffffff;
+  --surface-2:#f9fbfd;
+  --panel:#f4f7fa;
+  --panel-2:#edf2f6;
+  --border:#d9e2ea;
+  --border-strong:#c9d4df;
+  --shadow:0 8px 30px rgba(18, 34, 52, .08);
+  --shadow-soft:0 4px 18px rgba(18, 34, 52, .06);
+  --text:#1f2a37;
+  --muted:#5e6b7a;
+  --muted-2:#7b8794;
+  --success:#2e8b57;
+  --success-2:#4ea977;
+  --success-bg:#e7f5ee;
+  --danger:#b94a48;
+  --danger-bg:#fbeaea;
+  --warn:#a87400;
+  --warn-bg:#fff5db;
+  --green-a:#2f8f5b;
+  --green-b:#5cab73;
+  --green-c:#88c79c;
+  --green-deep:#205f3d;
+  --radius:18px;
+  --radius-lg:24px;
+  --radius-sm:12px;
+  --mono:'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --sans:'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --header-h:72px;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--sans);
+  background:
+    radial-gradient(circle at top left, rgba(78,169,119,.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(47,143,91,.06), transparent 22%),
+    linear-gradient(180deg, #ffffff 0%, var(--bg) 100%);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+  overflow-x:hidden;
+}
+
+body::before{
+  content:'';
+  position:fixed; inset:0;
+  pointer-events:none;
+  background-image:
+    linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,0)),
+    radial-gradient(rgba(31,42,55,.02) 1px, transparent 1px);
+  background-size:100% 100%, 22px 22px;
+  opacity:.55;
+}
+
+a{color:inherit}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+[hidden]{display:none !important}
+
+.skip-link{
+  position:absolute; left:-999px; top:auto;
+  width:1px; height:1px; overflow:hidden;
+}
+.skip-link:focus{
+  left:16px; top:16px; width:auto; height:auto;
+  padding:10px 14px; z-index:9999;
+  background:#fff; border:1px solid var(--border);
+  border-radius:12px; box-shadow:var(--shadow);
+}
+
+.app-shell{min-height:100vh; display:flex; flex-direction:column}
+.header{
+  position:sticky; top:0; z-index:50;
+  height:var(--header-h);
+  display:flex; align-items:center; justify-content:space-between;
+  gap:16px;
+  padding:0 22px;
+  background:rgba(255,255,255,.86);
+  backdrop-filter:saturate(160%) blur(18px);
+  border-bottom:1px solid rgba(217,226,234,.8);
+}
+.brand{
+  display:flex; align-items:center; gap:12px;
+  text-decoration:none; min-width:0;
+}
+.brand-mark{
+  width:38px; height:38px; border-radius:14px;
+  display:grid; place-items:center;
+  color:#173d29; font-size:18px; font-weight:800;
+  background:
+    linear-gradient(180deg, rgba(144, 212, 165, .95) 0%, rgba(84, 170, 121, .92) 55%, rgba(37, 110, 69, .98) 100%);
+  border:1px solid rgba(40,110,68,.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.55),
+    inset 0 -12px 18px rgba(0,0,0,.08),
+    0 6px 18px rgba(46,139,87,.18);
+}
+.brand-copy{display:flex; flex-direction:column; min-width:0}
+.brand-name{
+  font-weight:800; letter-spacing:-.03em; font-size:18px; line-height:1.1;
+}
+.brand-sub{
+  font-size:12px; color:var(--muted); line-height:1.2;
+}
+
+.stepper{
+  display:flex; align-items:center; gap:10px;
+  padding:8px 12px;
+  background:linear-gradient(180deg, #fbfcfd, #f4f7fa);
+  border:1px solid var(--border);
+  border-radius:999px;
+  box-shadow:var(--shadow-soft);
+}
+.step{
+  display:flex; align-items:center; gap:8px;
+  color:var(--muted-2);
+  font-size:12px;
+  white-space:nowrap;
+}
+.step .num{
+  width:22px; height:22px; border-radius:999px;
+  display:grid; place-items:center;
+  background:#eef2f5;
+  color:#687584;
+  font-weight:700;
+  font-size:11px;
+  border:1px solid #dfe6ec;
+}
+.step.active{color:var(--green-deep); font-weight:600}
+.step.active .num{
+  background:linear-gradient(180deg, #91d2a6, #4aa76f);
+  color:#fff;
+  border-color:rgba(38,104,65,.2);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.35);
+}
+.step.done{color:var(--success)}
+.step.done .num{
+  background:linear-gradient(180deg, #7dc494, #2f8f5b);
+  color:#fff;
+  border-color:rgba(32,95,61,.18);
+}
+.step-sep{color:#a5b0ba; font-size:12px}
+
+.badges{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+}
+.badge{
+  padding:7px 11px;
+  border-radius:999px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f7fafc);
+  color:var(--muted);
+  font-size:12px;
+  box-shadow:var(--shadow-soft);
+}
+.badge.primary{
+  border-color:rgba(46,139,87,.22);
+  color:var(--green-deep);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(232,245,237,.92));
+}
+
+main{
+  flex:1;
+  width:min(1380px, calc(100% - 40px));
+  margin:0 auto;
+  padding:24px 0 32px;
+}
+
+.view{display:none}
+.view.active{display:block}
+
+.hero{
+  display:grid;
+  grid-template-columns:minmax(0, 1.2fr) minmax(320px, .8fr);
+  gap:24px;
+  align-items:stretch;
+  margin-bottom:24px;
+}
+.hero-copy, .hero-card, .panel, .upload-card, .preview-shell, .results-shell, .processing-card{
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,253,.96));
+  border:1px solid rgba(217,226,234,.95);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);
+}
+.hero-copy{
+  padding:34px;
+  position:relative;
+  overflow:hidden;
+}
+.hero-copy::after{
+  content:'';
+  position:absolute; inset:auto -40px -70px auto;
+  width:220px; height:220px; border-radius:50%;
+  background:radial-gradient(circle, rgba(92,171,115,.14), transparent 66%);
+  pointer-events:none;
+}
+.eyebrow{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:7px 11px;
+  border-radius:999px;
+  background:rgba(46,139,87,.08);
+  border:1px solid rgba(46,139,87,.14);
+  color:var(--green-deep);
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.04em;
+  margin-bottom:18px;
+}
+.eyebrow::before{
+  content:'';
+  width:8px; height:8px; border-radius:50%;
+  background:linear-gradient(180deg, #a7deb7, #4ea977);
+  box-shadow:0 0 0 4px rgba(78,169,119,.12);
+}
+.hero h1{
+  margin:0;
+  font-size:clamp(34px, 5vw, 58px);
+  letter-spacing:-.05em;
+  line-height:1.02;
+}
+.hero h1 em{
+  font-style:normal;
+  background:linear-gradient(180deg, #86c89a 0%, #2f8f5b 100%);
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+.hero p{
+  margin:18px 0 0;
+  max-width:62ch;
+  font-size:15px;
+  line-height:1.7;
+  color:var(--muted);
+}
+.hero-points{
+  display:flex; flex-wrap:wrap; gap:10px;
+  margin-top:24px;
+}
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 12px;
+  border-radius:999px;
+  background:var(--surface-2);
+  border:1px solid var(--border);
+  color:var(--muted);
+  font-size:12px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72);
+}
+.pill .dot{
+  width:7px; height:7px; border-radius:50%;
+  background:linear-gradient(180deg, #9bd8aa, #3c9760);
+}
+
+.hero-card{
+  padding:22px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  gap:18px;
+}
+.card-title{
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#687584;
+}
+.stat-grid{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:12px;
+}
+.stat{
+  padding:16px;
+  border-radius:18px;
+  background:linear-gradient(180deg,#fff,#f8fbfd);
+  border:1px solid var(--border);
+}
+.stat-value{
+  font-size:24px;
+  font-weight:800;
+  letter-spacing:-.04em;
+  color:var(--green-deep);
+}
+.stat-label{
+  margin-top:3px;
+  font-size:12px;
+  color:var(--muted);
+}
+.hero-note{
+  padding:14px 16px;
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(92,171,115,.10), rgba(92,171,115,.05));
+  border:1px solid rgba(46,139,87,.14);
+  color:#3b5f47;
+  line-height:1.6;
+  font-size:13px;
+}
+
+.upload-card{
+  padding:22px;
+}
+.upload-layout{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 300px;
+  gap:18px;
+  align-items:start;
+}
+.dropzone{
+  position:relative;
+  min-height:260px;
+  padding:28px;
+  border-radius:24px;
+  border:1.5px dashed #bfd0dc;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(244,248,251,.96));
+  transition:all .18s ease;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  overflow:hidden;
+}
+.dropzone::before{
+  content:'';
+  position:absolute; inset:0;
+  background:
+    linear-gradient(135deg, rgba(92,171,115,.08), transparent 30%),
+    radial-gradient(circle at top, rgba(92,171,115,.06), transparent 40%);
+  pointer-events:none;
+}
+.dropzone:hover, .dropzone.drag-over{
+  transform:translateY(-1px);
+  border-color:rgba(46,139,87,.5);
+  box-shadow:0 14px 34px rgba(18,34,52,.08), 0 0 0 4px rgba(78,169,119,.08);
+}
+.dropzone:focus-within{
+  border-color:rgba(46,139,87,.7);
+  box-shadow:0 0 0 4px rgba(78,169,119,.10);
+}
+.file-input{
+  position:absolute; inset:0;
+  opacity:0;
+  width:100%; height:100%;
+  cursor:pointer;
+}
+.upload-icon{
+  width:68px; height:68px; border-radius:22px;
+  display:grid; place-items:center;
+  font-size:28px;
+  background:linear-gradient(180deg, #f7fbf8 0%, #e7f3ea 100%);
+  border:1px solid rgba(46,139,87,.12);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8);
+  margin-bottom:16px;
+}
+.upload-title{
+  font-size:20px;
+  letter-spacing:-.03em;
+  font-weight:800;
+  margin:0;
+}
+.upload-subtitle{
+  margin:8px 0 0;
+  color:var(--muted);
+  line-height:1.65;
+  max-width:52ch;
+}
+.support-list{
+  display:flex;
+  justify-content:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-top:16px;
+}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 10px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.04em;
+  border:1px solid var(--border);
+  background:#fff;
+  color:#51616e;
+}
+.tag.green{
+  background:linear-gradient(180deg, #eef8f1, #e4f2ea);
+  color:var(--green-deep);
+  border-color:rgba(46,139,87,.16);
+}
+.tag.soft{
+  background:linear-gradient(180deg, #fbfcfd, #f2f6f9);
+}
+
+.side-rail{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.side-box{
+  padding:16px;
+  border-radius:20px;
+  background:linear-gradient(180deg,#fff,#f7fafc);
+  border:1px solid var(--border);
+}
+.side-heading{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#677381;
+  margin-bottom:12px;
+}
+.preset-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.preset-btn{
+  appearance:none;
+  border:1px solid var(--border);
+  border-radius:16px;
+  background:
+    linear-gradient(180deg, #fff 0%, #f7fafb 100%);
+  padding:12px;
+  text-align:left;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  color:var(--text);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+  transition:transform .15s ease, border-color .15s ease, box-shadow .15s ease, background .15s ease;
+  min-height:76px;
+}
+.preset-btn:hover{transform:translateY(-1px); border-color:#b6c8d3; box-shadow:var(--shadow-soft)}
+.preset-btn.selected{
+  border-color:rgba(46,139,87,.34);
+  background:linear-gradient(180deg, #f4fbf7 0%, #ebf7ef 100%);
+  box-shadow:0 10px 24px rgba(46,139,87,.10);
+}
+.preset-emoji{
+  width:34px; height:34px; border-radius:12px;
+  display:grid; place-items:center;
+  background:linear-gradient(180deg, #eaf6ef, #d9efdf);
+  border:1px solid rgba(46,139,87,.12);
+  flex:none;
+}
+.preset-name{font-weight:700; font-size:13px; margin:0}
+.preset-desc{margin:3px 0 0; font-size:11px; color:var(--muted); line-height:1.45}
+.mini-actions{
+  display:flex; gap:10px; flex-wrap:wrap;
+}
+.help-copy{
+  font-size:13px;
+  color:var(--muted);
+  line-height:1.65;
+}
+
+.view-title{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  gap:12px;
+  margin-bottom:14px;
+}
+.view-title h2{
+  margin:0;
+  font-size:20px;
+  letter-spacing:-.03em;
+}
+.view-title p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.6;
+}
+.kicker{
+  color:var(--green-deep);
+  background:rgba(46,139,87,.08);
+  border:1px solid rgba(46,139,87,.12);
+  border-radius:999px;
+  padding:6px 10px;
+  font-size:12px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.preview-shell,
+.results-shell{
+  overflow:hidden;
+}
+.preview-top,
+.results-top{
+  padding:18px 20px;
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:center;
+  border-bottom:1px solid rgba(217,226,234,.9);
+  background:linear-gradient(180deg,#fff,#f8fbfd);
+}
+.file-meta{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  min-width:0;
+}
+.file-icon{
+  width:44px; height:44px;
+  border-radius:14px;
+  display:grid; place-items:center;
+  background:linear-gradient(180deg, #eef8f1, #dff0e5);
+  color:var(--green-deep);
+  border:1px solid rgba(46,139,87,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8);
+  font-size:18px;
+}
+.file-copy{min-width:0}
+.file-name{
+  font-weight:800;
+  letter-spacing:-.02em;
+  margin:0;
+  font-size:15px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.file-sub{
+  margin-top:3px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.layout-two{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) 330px;
+  min-height:0;
+}
+.main-pane{
+  padding:20px;
+  min-width:0;
+}
+.side-pane{
+  border-left:1px solid rgba(217,226,234,.9);
+  background:linear-gradient(180deg, #fff, #f7fafb);
+  padding:0;
+  min-width:0;
+}
+.sidebar{
+  padding:18px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.block{
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f8fbfd);
+  border-radius:20px;
+  padding:16px;
+}
+.block h3{
+  margin:0 0 12px;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#6b7784;
+}
+.helper{
+  font-size:13px;
+  line-height:1.65;
+  color:var(--muted);
+}
+
+.switches{display:flex; flex-direction:column; gap:10px}
+.switch{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:11px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f8fbfd);
+}
+.switch input{
+  margin-top:2px;
+  accent-color:var(--green-a);
+}
+.switch label{cursor:pointer; flex:1}
+.switch .name{display:block; font-weight:600; font-size:13px}
+.switch .desc{display:block; margin-top:2px; color:var(--muted); font-size:11px; line-height:1.4}
+.stats{
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:10px;
+}
+.stat-card{
+  padding:14px;
+  border-radius:16px;
+  background:
+    linear-gradient(180deg,#fff,#f8fbfd);
+  border:1px solid var(--border);
+}
+.stat-card .v{
+  font-size:22px;
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+.stat-card .l{font-size:11px; color:var(--muted); margin-top:3px}
+.stat-card.green .v{color:var(--success)}
+.stat-card.red .v{color:var(--danger)}
+.stat-card.blue .v{color:#2b6cb0}
+.stat-card.gold .v{color:#927100}
+
+.primary-clean{
+  width:100%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  border:none;
+  color:#10331f;
+  border-radius:18px;
+  padding:14px 16px;
+  font-size:14px;
+  font-weight:800;
+  letter-spacing:-.01em;
+  background:
+    linear-gradient(180deg, rgba(175,229,191,.98) 0%, rgba(96,189,125,.96) 47%, rgba(45,140,88,.98) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.7),
+    inset 0 -12px 18px rgba(0,0,0,.09),
+    0 14px 24px rgba(46,139,87,.18);
+  transition:transform .15s ease, box-shadow .15s ease, filter .15s ease;
+}
+.primary-clean:hover{
+  transform:translateY(-1px);
+  filter:saturate(1.02);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.72),
+    inset 0 -12px 18px rgba(0,0,0,.10),
+    0 18px 32px rgba(46,139,87,.22);
+}
+.primary-clean:active{transform:translateY(0)}
+.primary-clean .sub{
+  display:block;
+  font-size:11px;
+  font-weight:600;
+  color:rgba(16,51,31,.78);
+  margin-top:1px;
+}
+.secondary-btn{
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:10px 13px;
+  background:linear-gradient(180deg,#fff,#f6f9fb);
+  color:var(--text);
+  font-weight:600;
+  transition:transform .15s ease, border-color .15s ease, background .15s ease;
+}
+.secondary-btn:hover{transform:translateY(-1px); border-color:#bccad4}
+.secondary-btn:focus-visible,
+.preset-btn:focus-visible,
+.primary-clean:focus-visible,
+.dropzone:focus-visible,
+.tab-btn:focus-visible,
+.icon-btn:focus-visible,
+input:focus-visible{
+  outline:3px solid rgba(46,139,87,.18);
+  outline-offset:2px;
+}
+.icon-btn{
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f6f9fb);
+  color:var(--text);
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:600;
+}
+
+.section-head{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-end;
+  margin-bottom:12px;
+}
+.section-head h3{
+  margin:0;
+  font-size:12px;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#6c7783;
+}
+.section-head span{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.table-card{
+  overflow:hidden;
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:#fff;
+  box-shadow:var(--shadow-soft);
+}
+.table-wrap{
+  overflow:auto;
+  max-height:560px;
+}
+table.data-table{
+  border-collapse:separate;
+  border-spacing:0;
+  min-width:100%;
+  font-size:12px;
+}
+.data-table thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  background:linear-gradient(180deg,#f7fafc,#eef3f7);
+  color:#61707e;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-size:10px;
+  font-weight:800;
+  text-align:left;
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  white-space:nowrap;
+}
+.data-table tbody td{
+  padding:11px 14px;
+  border-bottom:1px solid #edf1f4;
+  color:#23303d;
+  white-space:nowrap;
+  max-width:260px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  background:#fff;
+}
+.data-table tbody tr:hover td{background:#fbfdff}
+.data-table .rownum{
+  position:sticky;
+  left:0;
+  z-index:0;
+  background:inherit;
+  color:#8a97a3;
+  font-family:var(--mono);
+  width:56px;
+}
+.data-table thead .rownum{
+  z-index:2;
+  background:linear-gradient(180deg,#f7fafc,#eef3f7);
+}
+.data-table td.changed{
+  background:linear-gradient(180deg, rgba(46,139,87,.09), rgba(46,139,87,.04));
+  color:#1f5f3c;
+}
+.data-table td.missing{
+  background:linear-gradient(180deg, rgba(185,74,72,.08), rgba(185,74,72,.03));
+  color:#8c3937;
+}
+.note{
+  padding:12px 14px;
+  border-top:1px solid var(--border);
+  background:#fbfdff;
+  color:var(--muted);
+  font-size:12px;
+  line-height:1.6;
+}
+
+.processing-wrap{
+  min-height:calc(100vh - var(--header-h) - 56px);
+  display:grid;
+  place-items:center;
+  padding:22px 0;
+}
+.processing-card{
+  width:min(620px, 100%);
+  padding:28px;
+}
+.processing-grid{
+  display:grid;
+  gap:14px;
+}
+.progress-top{
+  display:flex;
+  justify-content:space-between;
+  gap:16px;
+  align-items:flex-end;
+}
+.progress-title{
+  margin:0;
+  font-size:24px;
+  letter-spacing:-.04em;
+}
+.progress-sub{
+  margin:8px 0 0;
+  color:var(--muted);
+  line-height:1.6;
+  font-size:13px;
+}
+.progress-pill{
+  align-self:start;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(46,139,87,.08);
+  border:1px solid rgba(46,139,87,.14);
+  color:var(--green-deep);
+  font-weight:700;
+  font-size:12px;
+  white-space:nowrap;
+}
+.track{
+  width:100%;
+  height:12px;
+  border-radius:999px;
+  background:#edf2f6;
+  border:1px solid #d8e3ea;
+  overflow:hidden;
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.04);
+}
+.bar{
+  height:100%;
+  width:0%;
+  border-radius:inherit;
+  background:
+    linear-gradient(90deg, #9fd8b0 0%, #4eaa77 55%, #2e8b57 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5);
+  transition:width .25s ease;
+}
+.progress-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  color:var(--muted);
+  font-size:12px;
+}
+.steps{
+  margin-top:8px;
+  display:grid;
+  gap:8px;
+}
+.proc-step{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f9fbfd);
+  color:var(--muted);
+  font-size:13px;
+}
+.proc-step .ico{
+  width:24px; height:24px;
+  display:grid; place-items:center;
+  border-radius:8px;
+  background:#eef3f7;
+  color:#6b7784;
+  font-size:12px;
+  flex:none;
+}
+.proc-step.active{
+  border-color:rgba(46,139,87,.24);
+  background:linear-gradient(180deg,#f7fcf9,#eef8f1);
+  color:#24553a;
+}
+.proc-step.active .ico{
+  background:linear-gradient(180deg, #bce7c7, #66b784);
+  color:#fff;
+}
+.proc-step.done{
+  border-color:rgba(46,139,87,.18);
+  background:linear-gradient(180deg,#f3faf5,#eaf7ee);
+  color:#24553a;
+}
+.proc-step.done .ico{
+  background:linear-gradient(180deg, #86c89a, #2e8b57);
+  color:#fff;
+}
+.proc-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:6px;
+}
+.proc-card{
+  padding:14px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:#fff;
+}
+.proc-card .k{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em}
+.proc-card .v{margin-top:6px; font-size:22px; font-weight:800; letter-spacing:-.03em}
+
+.summary-strip{
+  display:grid;
+  grid-template-columns:repeat(4, minmax(0, 1fr));
+  gap:12px;
+  padding:18px 20px;
+}
+.summary-card{
+  padding:18px;
+  border:1px solid var(--border);
+  border-radius:20px;
+  background:linear-gradient(180deg,#fff,#f8fbfd);
+  box-shadow:var(--shadow-soft);
+}
+.summary-card .icon{
+  width:40px; height:40px;
+  border-radius:14px;
+  display:grid; place-items:center;
+  margin-bottom:12px;
+  font-size:18px;
+}
+.summary-card .icon.green{background:var(--success-bg); color:var(--success)}
+.summary-card .icon.blue{background:#eaf2fb; color:#2b6cb0}
+.summary-card .icon.gold{background:var(--warn-bg); color:#927100}
+.summary-card .icon.red{background:var(--danger-bg); color:var(--danger)}
+.summary-card .value{
+  font-size:24px;
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+.summary-card .label{
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+
+.results-toolbar{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.tabs{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  padding:0 20px 20px;
+}
+.tab-btn{
+  border:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f6f9fb);
+  color:var(--text);
+  border-radius:999px;
+  padding:10px 14px;
+  font-weight:700;
+  font-size:13px;
+}
+.tab-btn.active{
+  border-color:rgba(46,139,87,.26);
+  background:linear-gradient(180deg,#f0faf3,#e7f5ee);
+  color:var(--green-deep);
+  box-shadow:0 8px 18px rgba(46,139,87,.08);
+}
+
+.results-area{padding:0 20px 20px}
+.compare-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:16px;
+}
+.panel{
+  overflow:hidden;
+}
+.panel-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding:14px 16px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#fff,#f7fafc);
+}
+.panel-title{
+  margin:0;
+  font-size:13px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:#6a7682;
+}
+.panel-count{font-size:12px; color:var(--muted)}
+.ai-card{
+  margin:0 20px 18px;
+  padding:16px 18px;
+  border-radius:20px;
+  border:1px solid rgba(46,139,87,.14);
+  background:linear-gradient(180deg, rgba(46,139,87,.07), rgba(46,139,87,.03));
+  box-shadow:var(--shadow-soft);
+}
+.ai-card .title{
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--green-deep);
+  font-weight:800;
+}
+.ai-card p{
+  margin:8px 0 0;
+  color:#355044;
+  line-height:1.7;
+  font-size:13px;
+}
+
+.toolbar-inline{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.empty-state{
+  padding:48px 20px;
+  text-align:center;
+  color:var(--muted);
+}
+.empty-state .icon{
+  width:58px; height:58px;
+  margin:0 auto 14px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  font-size:26px;
+  background:linear-gradient(180deg,#f4f7fa,#eef3f7);
+  border:1px solid var(--border);
+}
+
+#toast-container{
+  position:fixed;
+  right:18px;
+  bottom:18px;
+  z-index:9999;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.toast{
+  min-width:260px;
+  max-width:min(420px, calc(100vw - 36px));
+  padding:12px 14px;
+  border-radius:16px;
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.94);
+  box-shadow:var(--shadow);
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  color:var(--text);
+  animation:toastIn .18s ease;
+}
+.toast .ico{
+  width:22px; height:22px; border-radius:999px;
+  display:grid; place-items:center;
+  font-weight:800; flex:none;
+  margin-top:1px;
+}
+.toast.success{border-color:rgba(46,139,87,.16)}
+.toast.success .ico{background:var(--success-bg); color:var(--success)}
+.toast.error{border-color:rgba(185,74,72,.16)}
+.toast.error .ico{background:var(--danger-bg); color:var(--danger)}
+.toast.info{border-color:rgba(43,108,176,.15)}
+.toast.info .ico{background:#eaf2fb; color:#2b6cb0}
+
+@keyframes toastIn{
+  from{opacity:0; transform:translateY(10px) scale(.98)}
+  to{opacity:1; transform:translateY(0) scale(1)}
+}
+.fade-up{animation:fadeUp .18s ease}
+@keyframes fadeUp{
+  from{opacity:0; transform:translateY(8px)}
+  to{opacity:1; transform:translateY(0)}
+}
+
+@media (max-width:1100px){
+  .hero, .upload-layout, .layout-two, .compare-grid{grid-template-columns:1fr}
+  .side-pane{border-left:none; border-top:1px solid rgba(217,226,234,.9)}
+  .summary-strip{grid-template-columns:repeat(2, minmax(0, 1fr))}
+  .stepper{display:none}
+}
+@media (max-width:720px){
+  :root{--header-h:68px}
+  .header{padding:0 14px}
+  main{width:min(100% - 24px, 1380px); padding-top:18px}
+  .hero-copy,.hero-card,.upload-card,.processing-card{padding:18px}
+  .preview-top,.results-top{padding:16px}
+  .main-pane,.results-area,.summary-strip,.tabs{padding-left:16px; padding-right:16px}
+  .summary-strip{grid-template-columns:1fr}
+  .preset-grid{grid-template-columns:1fr}
+  .proc-grid{grid-template-columns:1fr}
+  .results-top,.preview-top{flex-direction:column; align-items:flex-start}
+}
+@media (max-width:520px){
+  .brand-sub{display:none}
+  .hero h1{font-size:32px}
+  .upload-title{font-size:18px}
+  .stats{grid-template-columns:1fr}
+  .file-meta{align-items:flex-start}
+  .toolbar-inline{width:100%}
+}
+@media (prefers-reduced-motion:reduce){
+  *{scroll-behavior:auto !important; transition:none !important; animation:none !important}
+}
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main-content">Skip to main content</a>
+
+<div class="app-shell">
+  <header class="header" role="banner">
+    <a class="brand" href="#" id="brand-link" aria-label="DataForge home">
+      <div class="brand-mark">⚡</div>
+      <div class="brand-copy">
+        <div class="brand-name">DataForge</div>
+        <div class="brand-sub">Clean CSV and Excel files with confidence</div>
+      </div>
+    </a>
+
+    <div class="stepper" aria-label="Workflow progress">
+      <div class="step active" id="step-upload"><span class="num">1</span>Upload</div>
+      <span class="step-sep">›</span>
+      <div class="step" id="step-preview"><span class="num">2</span>Preview</div>
+      <span class="step-sep">›</span>
+      <div class="step" id="step-clean"><span class="num">3</span>Clean</div>
+      <span class="step-sep">›</span>
+      <div class="step" id="step-download"><span class="num">4</span>Download</div>
+    </div>
+
+    <div class="badges">
+      <span class="badge primary">Premium white UI</span>
+      <span class="badge">CSV · XLSX · XLS · TSV</span>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- Upload -->
+    <section class="view active" id="view-upload" aria-labelledby="upload-title">
+      <div class="hero">
+        <div class="hero-copy">
+          <div class="eyebrow">DataForge · Industrial data cleanup</div>
+          <h1 id="upload-title">Clean messy <em>CSV / Excel</em> data in one workflow.</h1>
+          <p>
+            Upload real files, inspect the preview, run smart cleaning, and export a polished result.
+            The interface is built to feel like a serious enterprise tool: calm, fast, and trustworthy.
+          </p>
+          <div class="hero-points" aria-label="Key capabilities">
+            <span class="pill"><span class="dot"></span>Duplicate removal</span>
+            <span class="pill"><span class="dot"></span>Date normalization</span>
+            <span class="pill"><span class="dot"></span>Text cleanup</span>
+            <span class="pill"><span class="dot"></span>Missing value flagging</span>
+            <span class="pill"><span class="dot"></span>Before / after review</span>
+          </div>
+        </div>
+
+        <aside class="hero-card">
+          <div>
+            <div class="card-title">Built for trust</div>
+            <div class="stat-grid" style="margin-top:12px">
+              <div class="stat">
+                <div class="stat-value">4</div>
+                <div class="stat-label">Simple steps</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">50MB</div>
+                <div class="stat-label">Upload ceiling</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">100+</div>
+                <div class="stat-label">Preview rows</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">1</div>
+                <div class="stat-label">Single file app</div>
+              </div>
+            </div>
+          </div>
+          <div class="hero-note">
+            Every action happens locally in the browser for the core workflow. File parsing, cleaning, and export are designed to be resilient even with rough spreadsheets.
+          </div>
+        </aside>
+      </div>
+
+      <div class="upload-card">
+        <div class="view-title">
+          <div>
+            <h2>Start with a file upload</h2>
+            <p>Drop a file into the zone below or browse from your device. The app accepts CSV, XLSX, XLS, and TSV.</p>
+          </div>
+          <div class="kicker">Upload → Preview</div>
+        </div>
+
+        <div class="upload-layout">
+          <div>
+            <label class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload a CSV or Excel file">
+              <input class="file-input" id="file-input" type="file" accept=".csv,.xlsx,.xls,.tsv" />
+              <div class="upload-icon">📄</div>
+              <h3 class="upload-title">Drop your file here</h3>
+              <p class="upload-subtitle">Or click to browse. DataForge will detect the format, preview the sheet, and guide you through cleaning.</p>
+              <div class="support-list">
+                <span class="tag green">CSV</span>
+                <span class="tag green">XLSX</span>
+                <span class="tag green">XLS</span>
+                <span class="tag soft">TSV</span>
+              </div>
+            </label>
+          </div>
+
+          <div class="side-rail">
+            <div class="side-box">
+              <div class="side-heading">Quick presets</div>
+              <div class="preset-grid">
+                <button class="preset-btn" data-preset="student" type="button" aria-pressed="false">
+                  <div class="preset-emoji">🎓</div>
+                  <div>
+                    <div class="preset-name">Student</div>
+                    <div class="preset-desc">Names, grades, attendance</div>
+                  </div>
+                </button>
+                <button class="preset-btn" data-preset="sales" type="button" aria-pressed="false">
+                  <div class="preset-emoji">📈</div>
+                  <div>
+                    <div class="preset-name">Sales</div>
+                    <div class="preset-desc">Dates, revenue, contacts</div>
+                  </div>
+                </button>
+                <button class="preset-btn" data-preset="contacts" type="button" aria-pressed="false">
+                  <div class="preset-emoji">👥</div>
+                  <div>
+                    <div class="preset-name">Contacts</div>
+                    <div class="preset-desc">Emails, phones, names</div>
+                  </div>
+                </button>
+                <button class="preset-btn" data-preset="inventory" type="button" aria-pressed="false">
+                  <div class="preset-emoji">📦</div>
+                  <div>
+                    <div class="preset-name">Inventory</div>
+                    <div class="preset-desc">SKUs, quantities, prices</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            <div class="side-box">
+              <div class="side-heading">What improves</div>
+              <div class="help-copy">
+                Clean whitespace, normalize date formats, mark missing values, remove exact duplicate rows, and create a clean export that is easy to review.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Preview -->
+    <section class="view" id="view-preview" aria-labelledby="preview-title">
+      <div class="preview-shell">
+        <div class="preview-top">
+          <div class="file-meta">
+            <div class="file-icon">📄</div>
+            <div class="file-copy">
+              <h2 class="file-name" id="preview-title">No file loaded</h2>
+              <div class="file-sub" id="preview-meta">Upload a CSV or spreadsheet to begin</div>
+            </div>
+          </div>
+          <div class="toolbar-inline">
+            <button class="secondary-btn" id="new-file-btn" type="button">Choose another file</button>
+          </div>
+        </div>
+
+        <div class="layout-two">
+          <div class="main-pane">
+            <div class="section-head">
+              <div>
+                <h3>Data preview</h3>
+                <span id="preview-sample-note">First rows shown for speed and readability</span>
+              </div>
+              <span id="preview-row-note">—</span>
+            </div>
+            <div class="table-card">
+              <div id="preview-table"></div>
+            </div>
+          </div>
+
+          <aside class="side-pane">
+            <div class="sidebar">
+              <div class="block">
+                <h3>Smart clean</h3>
+                <button class="primary-clean" id="smart-clean-btn" type="button">
+                  <span>Run Smart Clean</span>
+                </button>
+                <div class="helper" style="margin-top:10px">
+                  Applies the full cleaning pass with the current preset context and produces a short automated summary.
+                </div>
+              </div>
+
+              <div class="block">
+                <h3>Manual options</h3>
+                <div class="switches">
+                  <div class="switch">
+                    <input type="checkbox" id="opt-dedup" checked>
+                    <label for="opt-dedup">
+                      <span class="name">Remove duplicates</span>
+                      <span class="desc">Drop exact duplicate rows from the final export.</span>
+                    </label>
+                  </div>
+                  <div class="switch">
+                    <input type="checkbox" id="opt-dates" checked>
+                    <label for="opt-dates">
+                      <span class="name">Normalize dates</span>
+                      <span class="desc">Convert common date formats to YYYY-MM-DD.</span>
+                    </label>
+                  </div>
+                  <div class="switch">
+                    <input type="checkbox" id="opt-text" checked>
+                    <label for="opt-text">
+                      <span class="name">Standardize text</span>
+                      <span class="desc">Trim, collapse spaces, and fix casing in text fields.</span>
+                    </label>
+                  </div>
+                  <div class="switch">
+                    <input type="checkbox" id="opt-missing" checked>
+                    <label for="opt-missing">
+                      <span class="name">Flag missing values</span>
+                      <span class="desc">Replace blanks with a visible placeholder.</span>
+                    </label>
+                  </div>
+                  <button class="secondary-btn" id="manual-clean-btn" type="button">Run selected operations</button>
+                </div>
+              </div>
+
+              <div class="block">
+                <h3>File stats</h3>
+                <div class="stats">
+                  <div class="stat-card blue">
+                    <div class="v" id="stat-rows">0</div>
+                    <div class="l">Rows</div>
+                  </div>
+                  <div class="stat-card blue">
+                    <div class="v" id="stat-cols">0</div>
+                    <div class="l">Columns</div>
+                  </div>
+                  <div class="stat-card gold">
+                    <div class="v" id="stat-empty">0</div>
+                    <div class="l">Empty cells</div>
+                  </div>
+                  <div class="stat-card red">
+                    <div class="v" id="stat-dupes">0</div>
+                    <div class="l">Possible dupes</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <!-- Processing -->
+    <section class="view" id="view-processing" aria-labelledby="processing-title">
+      <div class="processing-wrap">
+        <div class="processing-card">
+          <div class="processing-grid">
+            <div class="progress-top">
+              <div>
+                <h2 class="progress-title" id="processing-title">Cleaning your data</h2>
+                <p class="progress-sub" id="proc-msg">Preparing file analysis…</p>
+              </div>
+              <div class="progress-pill" id="progress-pct">0%</div>
+            </div>
+
+            <div class="track" aria-label="Cleaning progress">
+              <div class="bar" id="progress-bar"></div>
+            </div>
+
+            <div class="progress-meta">
+              <span>Structured cleaning pass</span>
+              <span>Browser-safe and deterministic</span>
+            </div>
+
+            <div class="steps">
+              <div class="proc-step" id="ps-parse"><div class="ico">1</div><div>Parsing and validating the file</div></div>
+              <div class="proc-step" id="ps-dedup"><div class="ico">2</div><div>Finding duplicate rows</div></div>
+              <div class="proc-step" id="ps-dates"><div class="ico">3</div><div>Normalizing date formats</div></div>
+              <div class="proc-step" id="ps-text"><div class="ico">4</div><div>Standardizing text fields</div></div>
+              <div class="proc-step" id="ps-missing"><div class="ico">5</div><div>Flagging missing values</div></div>
+              <div class="proc-step" id="ps-summary"><div class="ico">6</div><div>Preparing review summary</div></div>
+            </div>
+
+            <div class="proc-grid">
+              <div class="proc-card"><div class="k">Current file</div><div class="v" id="proc-file">—</div></div>
+              <div class="proc-card"><div class="k">Estimated output</div><div class="v" id="proc-output">—</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section class="view" id="view-results" aria-labelledby="results-title">
+      <div class="results-shell">
+        <div class="results-top">
+          <div class="file-meta">
+            <div class="file-icon">✅</div>
+            <div class="file-copy">
+              <h2 class="file-name" id="results-title">Cleaning complete</h2>
+              <div class="file-sub" id="results-subtitle">Your cleaned file is ready for review and export</div>
+            </div>
+          </div>
+          <div class="results-toolbar">
+            <button class="secondary-btn" id="back-btn" type="button">Back to preview</button>
+            <button class="secondary-btn" id="download-csv-btn" type="button">Download CSV</button>
+            <button class="primary-clean" id="download-xlsx-btn" type="button">
+              <span>Download Excel</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="summary-strip">
+          <div class="summary-card">
+            <div class="icon red">🗑️</div>
+            <div class="value" id="sum-dupes">0</div>
+            <div class="label">Duplicates removed</div>
+          </div>
+          <div class="summary-card">
+            <div class="icon blue">📅</div>
+            <div class="value" id="sum-dates">0</div>
+            <div class="label">Dates normalized</div>
+          </div>
+          <div class="summary-card">
+            <div class="icon gold">✏️</div>
+            <div class="value" id="sum-text">0</div>
+            <div class="label">Text fields fixed</div>
+          </div>
+          <div class="summary-card">
+            <div class="icon green">⚠️</div>
+            <div class="value" id="sum-missing">0</div>
+            <div class="label">Missing values flagged</div>
+          </div>
+        </div>
+
+        <div class="ai-card" id="analysis-card" hidden>
+          <div class="title">Automated analysis</div>
+          <p id="analysis-text"></p>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Result tabs">
+          <button class="tab-btn active" data-tab="compare" role="tab" aria-selected="true" type="button">Before / After</button>
+          <button class="tab-btn" data-tab="cleaned" role="tab" aria-selected="false" type="button">Cleaned data</button>
+          <button class="tab-btn" data-tab="original" role="tab" aria-selected="false" type="button">Original data</button>
+        </div>
+
+        <div class="results-area" id="results-area"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+</div>
+
+<script>
+'use strict';
+
+const MAX_UPLOAD_MB = 50;
+const PREVIEW_ROWS = 100;
+const RESULT_ROWS = 250;
+
+const State = {
+  file: null,
+  fileName: '',
+  preset: null,
+  original: null,
+  cleaned: null,
+  analysis: '',
+  currentView: 'upload',
+  activeResultTab: 'compare'
+};
+
+const PRESETS = {
+  student: { name: 'student', label: 'Student', hint: 'Name, grade, attendance style datasets.' },
+  sales: { name: 'sales', label: 'Sales', hint: 'Revenue, lead, account, and date-heavy tables.' },
+  contacts: { name: 'contacts', label: 'Contacts', hint: 'Names, emails, and phone columns.' },
+  inventory: { name: 'inventory', label: 'Inventory', hint: 'SKU, quantity, price, and product tables.' }
+};
+
+const monthMap = {
+  jan:1, january:1, feb:2, february:2, mar:3, march:3, apr:4, april:4, may:5, jun:6, june:6,
+  jul:7, july:7, aug:8, august:8, sep:9, sept:9, september:9, oct:10, october:10, nov:11, november:11, dec:12, december:12
+};
+
+const App = (() => {
+  const $ = (id) => document.getElementById(id);
+
+  function setView(name) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const el = $('view-' + name);
+    if (el) el.classList.add('active');
+    State.currentView = name;
+    updateStepper(name);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function updateStepper(view) {
+    const map = { upload: 1, preview: 2, processing: 3, results: 4 };
+    const current = map[view] || 1;
+    ['upload','preview','clean','download'].forEach((step, index) => {
+      const el = $('step-' + step);
+      if (!el) return;
+      el.classList.remove('active', 'done');
+      if (index + 1 < current) el.classList.add('done');
+      else if (index + 1 === current) el.classList.add('active');
+    });
+  }
+
+  function reset() {
+    State.file = null;
+    State.fileName = '';
+    State.preset = null;
+    State.original = null;
+    State.cleaned = null;
+    State.analysis = '';
+    State.activeResultTab = 'compare';
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.classList.remove('selected');
+      btn.setAttribute('aria-pressed', 'false');
+    });
+    $('file-input').value = '';
+    $('preview-table').innerHTML = '';
+    $('results-area').innerHTML = '';
+    $('analysis-card').hidden = true;
+    setView('upload');
+  }
+
+  function setPreset(name) {
+    State.preset = State.preset === name ? null : name;
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      const active = btn.dataset.preset === State.preset;
+      btn.classList.toggle('selected', active);
+      btn.setAttribute('aria-pressed', String(active));
+    });
+    Toast.show(State.preset ? `Preset applied: ${PRESETS[State.preset].label}` : 'Preset cleared', 'info');
+  }
+
+  function wirePresetButtons() {
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => setPreset(btn.dataset.preset));
+    });
+  }
+
+  async function loadFile(file) {
+    if (!file) return;
+
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    const allowed = ['csv','xlsx','xls','tsv'];
+    if (!allowed.includes(ext)) {
+      Toast.show('Unsupported file type. Use CSV, XLSX, XLS, or TSV.', 'error');
+      return;
+    }
+
+    if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+      Toast.show(`File is too large. Maximum size is ${MAX_UPLOAD_MB}MB.`, 'error');
+      return;
+    }
+
+    try {
+      Toast.show(`Loading ${file.name}…`, 'info');
+      const parsed = await FileParser.parse(file);
+      if (!parsed.rows.length) {
+        Toast.show('The file appears to be empty.', 'error');
+        return;
+      }
+
+      State.file = file;
+      State.fileName = file.name;
+      State.original = parsed;
+      State.cleaned = null;
+      State.analysis = '';
+      renderPreview();
+      setView('preview');
+      Toast.show('File loaded successfully.', 'success');
+    } catch (err) {
+      Toast.show(err.message || 'Could not read this file.', 'error');
+    }
+  }
+
+  function renderPreview() {
+    if (!State.original) return;
+    const { headers, rows } = State.original;
+
+    $('preview-title').textContent = State.fileName;
+    $('preview-meta').textContent = `${rows.length.toLocaleString()} rows · ${headers.length.toLocaleString()} columns · ${formatBytes(State.file.size)}`;
+    $('preview-row-note').textContent = `Previewing ${Math.min(rows.length, PREVIEW_ROWS).toLocaleString()} of ${rows.length.toLocaleString()} rows`;
+
+    Renderer.renderTable(
+      $('preview-table'),
+      headers,
+      rows.slice(0, PREVIEW_ROWS),
+      null,
+      PREVIEW_ROWS
+    );
+
+    const stats = CleaningEngine.quickStats(headers, rows);
+    $('stat-rows').textContent = stats.rows.toLocaleString();
+    $('stat-cols').textContent = stats.cols.toLocaleString();
+    $('stat-empty').textContent = stats.empty.toLocaleString();
+    $('stat-dupes').textContent = stats.dupes.toLocaleString();
+
+    $('proc-file').textContent = State.fileName;
+    $('proc-output').textContent = `${rows.length.toLocaleString()} rows`;
+  }
+
+  async function runSmartClean() {
+    if (!State.original) {
+      Toast.show('Upload a file first.', 'error');
+      return;
+    }
+    await runCleanWorkflow({
+      removeDuplicates: true,
+      normalizeDates: true,
+      normalizeText: true,
+      flagMissing: true,
+      mode: 'smart'
+    });
+  }
+
+  async function runManualClean() {
+    if (!State.original) {
+      Toast.show('Upload a file first.', 'error');
+      return;
+    }
+    await runCleanWorkflow({
+      removeDuplicates: $('opt-dedup').checked,
+      normalizeDates: $('opt-dates').checked,
+      normalizeText: $('opt-text').checked,
+      flagMissing: $('opt-missing').checked,
+      mode: 'manual'
+    });
+  }
+
+  async function runCleanWorkflow(options) {
+    setView('processing');
+    resetProgress();
+
+    const { headers, rows } = State.original;
+    setStep('parse', 'active'); setProgress(8, 'Validating file structure…'); await delay(180); setStep('parse', 'done');
+
+    if (options.removeDuplicates) {
+      setStep('dedup', 'active'); setProgress(24, 'Scanning for duplicate rows…'); await delay(220); setStep('dedup', 'done');
+    } else {
+      setStep('dedup', 'done');
+    }
+
+    if (options.normalizeDates) {
+      setStep('dates', 'active'); setProgress(42, 'Normalizing date values…'); await delay(220); setStep('dates', 'done');
+    } else {
+      setStep('dates', 'done');
+    }
+
+    if (options.normalizeText) {
+      setStep('text', 'active'); setProgress(60, 'Standardizing text fields…'); await delay(220); setStep('text', 'done');
+    } else {
+      setStep('text', 'done');
+    }
+
+    if (options.flagMissing) {
+      setStep('missing', 'active'); setProgress(76, 'Flagging empty values…'); await delay(220); setStep('missing', 'done');
+    } else {
+      setStep('missing', 'done');
+    }
+
+    setStep('summary', 'active');
+    setProgress(90, 'Building cleaned output…');
+    await delay(120);
+
+    const result = CleaningEngine.clean(headers, rows, {
+      removeDuplicates: options.removeDuplicates,
+      normalizeDates: options.normalizeDates,
+      normalizeText: options.normalizeText,
+      flagMissing: options.flagMissing,
+      preset: State.preset
+    });
+
+    State.cleaned = result;
+    State.analysis = Analysis.generate(State.original, result, State.preset, options.mode);
+
+    setProgress(100, 'Ready to review and export.');
+    setStep('summary', 'done');
+    await delay(150);
+
+    renderResults();
+    setView('results');
+    Toast.show('Cleaning complete.', 'success');
+  }
+
+  function renderResults() {
+    if (!State.cleaned) return;
+
+    const { changes } = State.cleaned;
+    $('sum-dupes').textContent = changes.duplicatesRemoved.toLocaleString();
+    $('sum-dates').textContent = changes.datesNormalized.toLocaleString();
+    $('sum-text').textContent = changes.textNormalized.toLocaleString();
+    $('sum-missing').textContent = changes.missingFlagged.toLocaleString();
+
+    const totalFixed = changes.duplicatesRemoved + changes.datesNormalized + changes.textNormalized + changes.missingFlagged;
+    $('results-subtitle').textContent = `${totalFixed.toLocaleString()} issues handled across ${State.cleaned.rows.length.toLocaleString()} rows.`;
+    const aiCard = $('analysis-card');
+    const aiText = $('analysis-text');
+    if (State.analysis) {
+      aiCard.hidden = false;
+      aiText.textContent = State.analysis;
+    } else {
+      aiCard.hidden = true;
+      aiText.textContent = '';
+    }
+
+    buildResultsTab(State.activeResultTab || 'compare');
+    syncTabButtons();
+  }
+
+  function syncTabButtons() {
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const active = btn.dataset.tab === State.activeResultTab;
+      btn.classList.toggle('active', active);
+      btn.setAttribute('aria-selected', String(active));
+    });
+  }
+
+  function buildResultsTab(tab) {
+    State.activeResultTab = tab;
+    const area = $('results-area');
+    area.innerHTML = '';
+
+    if (!State.original || !State.cleaned) {
+      area.innerHTML = '<div class="empty-state"><div class="icon">📊</div><div>No data available.</div></div>';
+      return;
+    }
+
+    if (tab === 'compare') {
+      const wrap = document.createElement('div');
+      wrap.className = 'compare-grid fade-up';
+
+      const before = createPane('Before', State.original.headers, State.original.rows.slice(0, RESULT_ROWS), null, `${State.original.rows.length.toLocaleString()} rows`);
+      const after = createPane('After', State.cleaned.headers, State.cleaned.rows.slice(0, RESULT_ROWS), State.cleaned.diffMap.slice(0, RESULT_ROWS), `${State.cleaned.rows.length.toLocaleString()} rows`);
+
+      wrap.appendChild(before);
+      wrap.appendChild(after);
+      area.appendChild(wrap);
+      return;
+    }
+
+    const data = tab === 'cleaned' ? State.cleaned : State.original;
+    const pane = createPane(tab === 'cleaned' ? 'Cleaned data' : 'Original data', data.headers, data.rows.slice(0, RESULT_ROWS), tab === 'cleaned' ? data.diffMap.slice(0, RESULT_ROWS) : null, `${data.rows.length.toLocaleString()} rows`);
+    area.appendChild(pane);
+  }
+
+  function createPane(title, headers, rows, diffMap, countLabel) {
+    const pane = document.createElement('section');
+    pane.className = 'panel fade-up';
+
+    const header = document.createElement('div');
+    header.className = 'panel-header';
+    header.innerHTML = `<h3 class="panel-title">${escapeHTML(title)}</h3><div class="panel-count">${escapeHTML(countLabel)}</div>`;
+    pane.appendChild(header);
+
+    const tableHolder = document.createElement('div');
+    Renderer.renderTable(tableHolder, headers, rows, diffMap, RESULT_ROWS);
+    pane.appendChild(tableHolder);
+    return pane;
+  }
+
+  async function downloadCSV() {
+    if (!State.cleaned) {
+      Toast.show('Run a cleaning pass first.', 'error');
+      return;
+    }
+    const { headers, rows } = State.cleaned;
+    const csv = [headers.map(escapeCSV).join(',')].concat(rows.map(row => row.map(escapeCSV).join(','))).join('\r\n');
+    downloadBlob(new Blob([csv], { type: 'text/csv;charset=utf-8' }), safeFilename('dataforge_cleaned_', 'csv'));
+    Toast.show('CSV download started.', 'success');
+  }
+
+  async function downloadXLSX() {
+    if (!State.cleaned) {
+      Toast.show('Run a cleaning pass first.', 'error');
+      return;
+    }
+    const { headers, rows } = State.cleaned;
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Cleaned');
+    XLSX.writeFile(wb, safeFilename('dataforge_cleaned_', 'xlsx'));
+    Toast.show('Excel download started.', 'success');
+  }
+
+  function goPreview() {
+    if (!State.original) return;
+    setView('preview');
+  }
+
+  function setProgress(pct, msg) {
+    $('progress-bar').style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    $('progress-pct').textContent = `${Math.round(pct)}%`;
+    if (msg) $('proc-msg').textContent = msg;
+  }
+
+  function setStep(id, state) {
+    const el = $('ps-' + id);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (state === 'active') el.classList.add('active');
+    if (state === 'done') el.classList.add('done');
+    const ico = el.querySelector('.ico');
+    if (ico) ico.textContent = state === 'done' ? '✓' : state === 'active' ? '…' : String(el.id.slice(-1)).toUpperCase();
+  }
+
+  function resetProgress() {
+    setProgress(0, 'Preparing file analysis…');
+    ['parse','dedup','dates','text','missing','summary'].forEach(id => {
+      const el = $('ps-' + id);
+      if (!el) return;
+      el.classList.remove('active', 'done');
+      const ico = el.querySelector('.ico');
+      if (ico) ico.textContent = id === 'summary' ? '6' : String(['parse','dedup','dates','text','missing','summary'].indexOf(id) + 1);
+    });
+  }
+
+  function wireEvents() {
+    const dropzone = $('dropzone');
+    const fileInput = $('file-input');
+
+    dropzone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('drag-over');
+    });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('drag-over');
+      const file = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (file) loadFile(file);
+    });
+
+    dropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => loadFile(e.target.files && e.target.files[0]));
+
+    $('brand-link').addEventListener('click', (e) => {
+      e.preventDefault();
+      reset();
+    });
+
+    $('new-file-btn').addEventListener('click', () => {
+      fileInput.value = '';
+      reset();
+    });
+
+    $('smart-clean-btn').addEventListener('click', runSmartClean);
+    $('manual-clean-btn').addEventListener('click', runManualClean);
+    $('back-btn').addEventListener('click', goPreview);
+    $('download-csv-btn').addEventListener('click', downloadCSV);
+    $('download-xlsx-btn').addEventListener('click', downloadXLSX);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => {
+          b.classList.remove('active');
+          b.setAttribute('aria-selected', 'false');
+        });
+        btn.classList.add('active');
+        btn.setAttribute('aria-selected', 'true');
+        buildResultsTab(btn.dataset.tab);
+      });
+    });
+
+    wirePresetButtons();
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && State.currentView !== 'upload' && !document.activeElement?.matches('input, textarea')) {
+        if (State.currentView === 'results') goPreview();
+      }
+    });
+  }
+
+  function init() {
+    wireEvents();
+    updateStepper('upload');
+    Toast.show('Ready for a file.', 'info');
+  }
+
+  return {
+    init,
+    reset,
+    setView,
+    loadFile,
+    renderPreview,
+    runSmartClean,
+    runManualClean,
+    goPreview
+  };
+})();
+
+const FileParser = (() => {
+  async function parse(file) {
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (ext === 'csv' || ext === 'tsv') return parseCSV(file, ext === 'tsv' ? '\t' : undefined);
+    if (ext === 'xlsx' || ext === 'xls') return parseSpreadsheet(file);
+    throw new Error(`Unsupported file type: .${ext}`);
+  }
+
+  function parseCSV(file, delimiter) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(file, {
+        header: false,
+        skipEmptyLines: 'greedy',
+        delimiter,
+        dynamicTyping: false,
+        complete: (result) => {
+          try {
+            const data = (result.data || []).map(row => normalizeRow(Array.isArray(row) ? row : [row]));
+            const cleaned = data.filter(row => row.some(cell => String(cell).trim() !== ''));
+            if (cleaned.length === 0) return reject(new Error('The CSV file is empty.'));
+            resolve(shapeTable(cleaned));
+          } catch (err) {
+            reject(new Error('Could not read the CSV file.'));
+          }
+        },
+        error: (err) => reject(new Error(err?.message || 'CSV parsing failed'))
+      });
+    });
+  }
+
+  function parseSpreadsheet(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('File read failed.'));
+      reader.onload = (event) => {
+        try {
+          const wb = XLSX.read(event.target.result, { type: 'array' });
+          const sheetName = wb.SheetNames[0];
+          if (!sheetName) return reject(new Error('No worksheet found.'));
+          const ws = wb.Sheets[sheetName];
+          const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+          const data = (raw || []).map(row => normalizeRow(Array.isArray(row) ? row : [row]));
+          const cleaned = data.filter(row => row.some(cell => String(cell).trim() !== ''));
+          if (cleaned.length === 0) return reject(new Error('The spreadsheet is empty.'));
+          resolve(shapeTable(cleaned));
+        } catch (err) {
+          reject(new Error(`Could not read the spreadsheet: ${err.message}`));
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  function normalizeRow(row) {
+    return row.map(cell => {
+      if (cell === null || cell === undefined) return '';
+      return String(cell);
+    });
+  }
+
+  function shapeTable(rows) {
+    const maxCols = rows.reduce((m, row) => Math.max(m, row.length), 0);
+    const normalized = rows.map(row => {
+      const copy = row.slice();
+      while (copy.length < maxCols) copy.push('');
+      return copy;
+    });
+
+    let headers = normalized[0].map((h, i) => {
+      const label = String(h || '').trim();
+      return label || `Column ${i + 1}`;
+    });
+
+    const hasRealHeader = headers.some(h => h && !/^Column \d+$/.test(h));
+    if (!hasRealHeader) {
+      headers = Array.from({ length: maxCols }, (_, i) => `Column ${i + 1}`);
+      return { headers, rows: normalized };
+    }
+
+    const rowsOnly = normalized.slice(1);
+    return { headers, rows: rowsOnly };
+  }
+
+  return { parse };
+})();
+
+const CleaningEngine = (() => {
+  function clean(headers, rows, options = {}) {
+    const config = {
+      removeDuplicates: options.removeDuplicates !== false,
+      normalizeDates: options.normalizeDates !== false,
+      normalizeText: options.normalizeText !== false,
+      flagMissing: options.flagMissing !== false,
+      preset: options.preset || null
+    };
+
+    const colTypes = detectColumnTypes(headers, rows);
+    const seen = new Set();
+    const diffMap = [];
+    const cleanedRows = [];
+
+    const changes = {
+      duplicatesRemoved: 0,
+      datesNormalized: 0,
+      textNormalized: 0,
+      missingFlagged: 0,
+      totalRows: rows.length,
+      totalCells: rows.length * headers.length
+    };
+
+    rows.forEach((row) => {
+      const normalizedKey = row.map(v => normalizeForKey(v)).join('\u0001');
+      if (config.removeDuplicates && seen.has(normalizedKey)) {
+        changes.duplicatesRemoved += 1;
+        return;
+      }
+      seen.add(normalizedKey);
+
+      const newRow = [];
+      const rowDiff = [];
+      row.forEach((cell, index) => {
+        const type = colTypes[index] || 'text';
+        let value = cell == null ? '' : String(cell);
+        const trimmed = value.trim();
+        const isBlank = isMissing(trimmed);
+
+        if (config.flagMissing && isBlank) {
+          changes.missingFlagged += 1;
+          newRow.push('[MISSING]');
+          rowDiff.push('missing');
+          return;
+        }
+
+        let next = trimAndCollapse(value);
+
+        if (config.normalizeDates && isDateLike(next)) {
+          const date = normalizeDate(next);
+          if (date && date !== next) {
+            next = date;
+            changes.datesNormalized += 1;
+            rowDiff.push('changed');
+          }
+        }
+
+        if (config.normalizeText && shouldNormalizeText(type, headers[index], next)) {
+          const transformed = normalizeText(next, type, headers[index], config.preset);
+          if (transformed !== next) {
+            next = transformed;
+            changes.textNormalized += 1;
+            if (!rowDiff.length) rowDiff.push('changed');
+          }
+        }
+
+        if (!rowDiff.length && next !== value) rowDiff.push('changed');
+        newRow.push(next);
+      });
+
+      while (newRow.length < headers.length) newRow.push('');
+      while (rowDiff.length < headers.length) rowDiff.push(false);
+
+      cleanedRows.push(newRow);
+      diffMap.push(rowDiff);
+    });
+
+    return {
+      headers: headers.slice(),
+      rows: cleanedRows,
+      diffMap,
+      colTypes,
+      changes
+    };
+  }
+
+  function quickStats(headers, rows) {
+    let empty = 0;
+    const seen = new Set();
+    let dupes = 0;
+    rows.forEach(row => {
+      row.forEach(cell => {
+        if (isMissing(cell)) empty += 1;
+      });
+      const key = row.map(v => normalizeForKey(v)).join('\u0001');
+      if (seen.has(key)) dupes += 1;
+      else seen.add(key);
+    });
+    return { rows: rows.length, cols: headers.length, empty, dupes };
+  }
+
+  function detectColumnTypes(headers, rows) {
+    return headers.map((header, index) => {
+      const values = rows.map(row => row[index]).filter(v => !isMissing(v));
+      if (!values.length) return 'text';
+
+      const dateRatio = values.filter(isDateLike).length / values.length;
+      if (dateRatio >= 0.55) return 'date';
+
+      const emailRatio = values.filter(v => isEmail(String(v))).length / values.length;
+      if (emailRatio >= 0.55 || /email/i.test(header)) return 'email';
+
+      const phoneRatio = values.filter(v => isPhone(String(v))).length / values.length;
+      if (phoneRatio >= 0.55 || /phone|mobile|contact/i.test(header)) return 'phone';
+
+      const numericRatio = values.filter(v => isNumeric(String(v))).length / values.length;
+      if (numericRatio >= 0.7) return 'numeric';
+
+      const nameLike = values.filter(v => isNameLike(String(v))).length / values.length;
+      if (nameLike >= 0.6 || /name|first|last|full/i.test(header)) return 'name';
+
+      return 'text';
+    });
+  }
+
+  function normalizeText(value, type, header, preset) {
+    let v = trimAndCollapse(value);
+    if (!v) return v;
+
+    const lowerHeader = String(header || '').toLowerCase();
+    if (type === 'email' || /email/.test(lowerHeader)) return v.toLowerCase();
+    if (type === 'phone' || /phone|mobile/.test(lowerHeader)) return normalizePhone(v);
+    if (type === 'numeric' || /amount|price|qty|quantity|score|rate|total|count|number|percent|percentage/.test(lowerHeader)) return v;
+    if (/id|sku|code|zip|postal/.test(lowerHeader)) return v.toUpperCase();
+
+    if (type === 'name') return titleCase(v);
+    if (preset === 'contacts') return titleCase(v);
+    if (preset === 'student' && /name/.test(lowerHeader)) return titleCase(v);
+    return smartSentenceCase(v);
+  }
+
+  function shouldNormalizeText(type, header, value) {
+    const lowerHeader = String(header || '').toLowerCase();
+    if (type === 'numeric') return false;
+    if (type === 'date') return false;
+    if (isEmail(value) || isPhone(value)) return false;
+    if (/id|sku|zip|code/.test(lowerHeader)) return false;
+    return true;
+  }
+
+  function normalizeDate(value) {
+    const raw = trimAndCollapse(value);
+    if (!raw) return raw;
+
+    const m1 = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/) || raw.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/);
+    if (m1) return toISODate(+m1[1], +m1[2], +m1[3]);
+
+    const m2 = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+    if (m2) {
+      const guess = guessMonthDay(+m2[1], +m2[2]);
+      return toISODate(+m2[3], guess.month, guess.day);
+    }
+
+    const m3 = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2})$/);
+    if (m3) {
+      const guess = guessMonthDay(+m3[1], +m3[2]);
+      return toISODate(2000 + +m3[3], guess.month, guess.day);
+    }
+
+    const named = raw.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/) || raw.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
+    if (named) {
+      if (/^\d/.test(named[1])) {
+        return toISODate(+named[3], monthFromName(named[2]), +named[1]);
+      }
+      return toISODate(+named[3], monthFromName(named[1]), +named[2]);
+    }
+
+    const isoLike = new Date(raw);
+    if (!Number.isNaN(isoLike.getTime()) && isoLike.getFullYear() > 1900 && isoLike.getFullYear() < 2200) {
+      return toISODate(isoLike.getFullYear(), isoLike.getMonth() + 1, isoLike.getDate());
+    }
+    return raw;
+  }
+
+  function isDateLike(value) {
+    const v = String(value || '').trim();
+    if (!v) return false;
+    return Boolean(
+      v.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/) ||
+      v.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/) ||
+      v.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/) ||
+      v.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/) ||
+      v.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/)
+    ) || (!Number.isNaN(new Date(v).getTime()) && /\d/.test(v));
+  }
+
+  function isEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim());
+  }
+
+  function isPhone(value) {
+    const digits = String(value).replace(/[^\d+]/g, '');
+    return digits.length >= 7 && digits.length <= 16;
+  }
+
+  function isNumeric(value) {
+    const s = String(value).trim().replace(/[$,€£%\s]/g, '');
+    return s !== '' && !Number.isNaN(Number(s));
+  }
+
+  function isNameLike(value) {
+    const s = String(value).trim();
+    return /^[A-Za-z][A-Za-z'’\- .]+$/.test(s) && s.length < 64;
+  }
+
+  function trimAndCollapse(value) {
+    return String(value == null ? '' : value).replace(/\s+/g, ' ').trim();
+  }
+
+  function normalizePhone(value) {
+    const raw = String(value).trim();
+    if (!raw) return raw;
+    const keepPlus = raw.startsWith('+');
+    const digits = raw.replace(/[^\d]/g, '');
+    if (!digits) return raw;
+    return (keepPlus ? '+' : '') + digits;
+  }
+
+  function titleCase(value) {
+    return String(value)
+      .toLowerCase()
+      .replace(/\b([a-z])([a-z'’\-]*)/g, (m, a, b) => a.toUpperCase() + b);
+  }
+
+  function smartSentenceCase(value) {
+    const s = trimAndCollapse(value);
+    if (!s) return s;
+    if (s === s.toUpperCase() && s.length > 1) return titleCase(s);
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  function toISODate(y, m, d) {
+    const date = new Date(Date.UTC(+y, +m - 1, +d));
+    if (Number.isNaN(date.getTime())) return `${y}-${pad(m)}-${pad(d)}`;
+    if (date.getUTCFullYear() !== +y || date.getUTCMonth() + 1 !== +m || date.getUTCDate() !== +d) {
+      return `${y}-${pad(m)}-${pad(d)}`;
+    }
+    return `${String(y).padStart(4, '0')}-${pad(m)}-${pad(d)}`;
+  }
+
+  function pad(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  function monthFromName(name) {
+    return monthMap[String(name).toLowerCase()] || 1;
+  }
+
+  function guessMonthDay(a, b) {
+    if (a > 12 && b <= 12) return { month: b, day: a };
+    if (b > 12 && a <= 12) return { month: a, day: b };
+    return { month: a, day: b };
+  }
+
+  function normalizeForKey(value) {
+    return trimAndCollapse(String(value == null ? '' : value)).toLowerCase();
+  }
+
+  function isMissing(value) {
+    const v = trimAndCollapse(value).toLowerCase();
+    return v === '' || v === 'null' || v === 'undefined' || v === 'n/a' || v === 'na' || v === 'none' || v === '-' || v === '--';
+  }
+
+  return { clean, quickStats };
+})();
+
+const Analysis = (() => {
+  function generate(original, cleaned, preset, mode) {
+    const o = original.rows.length;
+    const c = cleaned.rows.length;
+    const { changes } = cleaned;
+    const presetLabel = preset ? PRESETS[preset].label.toLowerCase() : 'general';
+    const modeLabel = mode === 'smart' ? 'smart pass' : 'manual pass';
+
+    const phrases = [];
+    if (changes.duplicatesRemoved) phrases.push(`${changes.duplicatesRemoved.toLocaleString()} duplicate row${changes.duplicatesRemoved === 1 ? '' : 's'} removed`);
+    if (changes.datesNormalized) phrases.push(`${changes.datesNormalized.toLocaleString()} date value${changes.datesNormalized === 1 ? '' : 's'} normalized`);
+    if (changes.textNormalized) phrases.push(`${changes.textNormalized.toLocaleString()} text field${changes.textNormalized === 1 ? '' : 's'} standardized`);
+    if (changes.missingFlagged) phrases.push(`${changes.missingFlagged.toLocaleString()} missing value${changes.missingFlagged === 1 ? '' : 's'} flagged`);
+
+    const intro = `The ${modeLabel} completed on the ${presetLabel} workflow and processed ${o.toLocaleString()} input rows into ${c.toLocaleString()} output rows.`;
+    const middle = phrases.length ? ` It handled ${phrases.join(', ')}.` : ' No row-level transformations were needed.';
+    const closing = ' The export is ready for download and the before/after review can be inspected in the comparison tab.';
+    return intro + middle + closing;
+  }
+  return { generate };
+})();
+
+const Renderer = (() => {
+  function renderTable(container, headers, rows, diffMap = null, maxRows = 100) {
+    if (!headers || !rows || !rows.length) {
+      container.innerHTML = '<div class="empty-state"><div class="icon">📊</div><div>No rows to display.</div></div>';
+      return;
+    }
+    const displayRows = rows.slice(0, maxRows);
+    const table = document.createElement('div');
+    table.className = 'table-wrap';
+
+    const markup = [];
+    markup.push('<table class="data-table">');
+    markup.push('<thead><tr><th class="rownum">#</th>');
+    headers.forEach(h => markup.push(`<th>${escapeHTML(h)}</th>`));
+    markup.push('</tr></thead><tbody>');
+
+    displayRows.forEach((row, ri) => {
+      markup.push('<tr>');
+      markup.push(`<td class="rownum">${ri + 1}</td>`);
+      headers.forEach((_, ci) => {
+        const value = row[ci] == null ? '' : String(row[ci]);
+        const diff = diffMap && diffMap[ri] ? diffMap[ri][ci] : false;
+        const cls = diff === 'changed' ? 'changed' : diff === 'missing' ? 'missing' : '';
+        markup.push(`<td class="${cls}" title="${escapeHTML(value)}">${escapeHTML(value)}</td>`);
+      });
+      markup.push('</tr>');
+    });
+
+    markup.push('</tbody></table>');
+    table.innerHTML = markup.join('');
+
+    container.innerHTML = '';
+    container.appendChild(table);
+
+    if (rows.length > maxRows) {
+      const note = document.createElement('div');
+      note.className = 'note';
+      note.textContent = `Showing ${maxRows.toLocaleString()} of ${rows.length.toLocaleString()} rows for performance. Export includes the full dataset.`;
+      container.appendChild(note);
+    }
+  }
+  return { renderTable };
+})();
+
+const Toast = (() => {
+  function show(message, type = 'info') {
+    const root = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.innerHTML = `<div class="ico">${type === 'success' ? '✓' : type === 'error' ? '!' : 'i'}</div><div>${escapeHTML(message)}</div>`;
+    root.appendChild(el);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(10px) scale(.98)';
+      el.style.transition = 'all .2s ease';
+      setTimeout(() => el.remove(), 220);
+    }, 3200);
+  }
+  return { show };
+})();
+
+const Progress = (() => {
+  function reset() {
+    set(0, 'Preparing file analysis…');
+    ['parse','dedup','dates','text','missing','summary'].forEach(id => {
+      const el = document.getElementById('ps-' + id);
+      if (!el) return;
+      el.classList.remove('active', 'done');
+      const ico = el.querySelector('.ico');
+      if (ico) ico.textContent = String(['parse','dedup','dates','text','missing','summary'].indexOf(id) + 1);
+    });
+  }
+  function set(pct, msg) {
+    const bar = document.getElementById('progress-bar');
+    const pctEl = document.getElementById('progress-pct');
+    const msgEl = document.getElementById('proc-msg');
+    if (bar) bar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
+    if (msgEl && msg) msgEl.textContent = msg;
+  }
+  function step(id, state) {
+    const el = document.getElementById('ps-' + id);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (state === 'active') el.classList.add('active');
+    if (state === 'done') el.classList.add('done');
+    const ico = el.querySelector('.ico');
+    if (ico) ico.textContent = state === 'done' ? '✓' : state === 'active' ? '…' : String(['parse','dedup','dates','text','missing','summary'].indexOf(id) + 1);
+  }
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  return { reset, set, step, delay };
+})();
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return '—';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let i = 0;
+  let val = bytes;
+  while (val >= 1024 && i < units.length - 1) {
+    val /= 1024;
+    i += 1;
+  }
+  return `${val.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function safeFilename(prefix, ext) {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  return `${prefix}${stamp}.${ext}`;
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function escapeCSV(value) {
+  const s = String(value == null ? '' : value);
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function escapeHTML(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  App.init();
+});
+async function uploadToBackend(file) {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+        const response = await fetch("http://localhost:5000/api/jobs/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
+        console.log(data);
+        alert("File sent to backend successfully!");
+
+    } catch (error) {
+        console.log(error);
+        alert("Upload failed");
+    }
+}
+document.getElementById("file-input").addEventListener("change", function(e) {
+    const file = e.target.files[0];
+
+    if(file){
+        uploadToBackend(file);
+    }
+});
+</script>
+</body>
+</html>
